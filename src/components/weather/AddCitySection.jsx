@@ -7,31 +7,44 @@ const AddCitySection = ({ onAddCity }) => {
   const [cityName, setCityName] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  const cities = [
-    "New York", "London", "Tokyo", "Paris", "Dubai",
-    "Singapore", "Hong Kong", "Los Angeles", "Chicago",
-    "Toronto", "Sydney", "Mumbai", "Delhi", "Berlin",
-    "Madrid", "Rome", "Amsterdam", "Moscow", "Beijing",
-    "Seoul"
-  ];
-
-  const handleInputChange = (e) => {
+  const handleInputChange = async (e) => {
     const value = e.target.value;
     setCityName(value);
 
-    if (value.trim()) {
-      const filteredCities = cities.filter(city =>
-        city.toLowerCase().includes(value.toLowerCase())
-      ).slice(0, 5);
-      setSuggestions(filteredCities);
+    if (value.trim().length >= 2) {
+      setSearchLoading(true);
+      try {
+        const response = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(value)}&count=5&language=en&format=json`
+        );
+        const data = await response.json();
+        
+        if (data.results) {
+          const cityResults = data.results.map(city => ({
+            name: city.name,
+            country: city.country,
+            admin1: city.admin1,
+            latitude: city.latitude,
+            longitude: city.longitude
+          }));
+          setSuggestions(cityResults);
+        } else {
+          setSuggestions([]);
+        }
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+        setSuggestions([]);
+      }
+      setSearchLoading(false);
     } else {
       setSuggestions([]);
     }
   };
 
   const handleSelectCity = (city) => {
-    setCityName(city);
+    setCityName(`${city.name}, ${city.country}`);
     setSuggestions([]);
   };
 
@@ -118,9 +131,17 @@ const AddCitySection = ({ onAddCity }) => {
                     onClick={() => handleSelectCity(city)}
                   >
                     <Search size={16} className="text-gray-400" />
-                    <span className="text-gray-700">{city}</span>
+                    <span className="text-gray-700">
+                      {city.name}, {city.admin1 && `${city.admin1},`} {city.country}
+                    </span>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {searchLoading && (
+              <div className="mt-2 p-2 text-center">
+                <LoadingSpinner size="small" />
               </div>
             )}
 
@@ -142,3 +163,5 @@ const AddCitySection = ({ onAddCity }) => {
 };
 
 export default AddCitySection;
+
+
